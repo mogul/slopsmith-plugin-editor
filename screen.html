@@ -1,0 +1,118 @@
+<div class="flex flex-col h-screen bg-dark-900 text-white overflow-hidden">
+
+    <!-- Top bar: back + song info -->
+    <div class="flex items-center gap-3 px-4 py-2 bg-dark-800 border-b border-gray-800 shrink-0">
+        <button onclick="showScreen('home')" class="text-gray-500 hover:text-white text-sm flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg> Back
+        </button>
+        <div class="h-4 w-px bg-gray-700"></div>
+        <span id="editor-song-title" class="text-sm text-gray-400">No song loaded</span>
+        <div class="flex-1"></div>
+        <!-- Arrangement selector -->
+        <select id="editor-arrangement" class="bg-dark-700 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 outline-none" onchange="editorSelectArrangement(this.value)" style="display:none">
+        </select>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="flex items-center gap-2 px-4 py-1.5 bg-dark-800 border-b border-gray-800 shrink-0 flex-wrap">
+        <!-- File operations -->
+        <button id="editor-load-btn" onclick="editorShowLoadModal()" class="px-3 py-1 bg-dark-600 hover:bg-dark-500 rounded text-xs font-medium">Load</button>
+        <button id="editor-save-btn" onclick="editorSave()" class="px-3 py-1 bg-accent hover:bg-accent-light rounded text-xs font-medium" disabled>Save</button>
+
+        <div class="h-4 w-px bg-gray-700"></div>
+
+        <!-- Undo/Redo -->
+        <button id="editor-undo" onclick="editorUndo()" class="px-2 py-1 bg-dark-600 hover:bg-dark-500 rounded text-xs" disabled title="Undo (Ctrl+Z)">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4"/></svg>
+        </button>
+        <button id="editor-redo" onclick="editorRedo()" class="px-2 py-1 bg-dark-600 hover:bg-dark-500 rounded text-xs" disabled title="Redo (Ctrl+Y)">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4"/></svg>
+        </button>
+
+        <div class="h-4 w-px bg-gray-700"></div>
+
+        <!-- Playback -->
+        <button id="editor-play-btn" onclick="editorTogglePlay()" class="px-2 py-1 bg-dark-600 hover:bg-dark-500 rounded text-xs" disabled title="Play/Pause (Space)">
+            <svg id="editor-play-icon" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <span id="editor-time-display" class="text-xs text-gray-500 font-mono w-20">0:00 / 0:00</span>
+
+        <div class="h-4 w-px bg-gray-700"></div>
+
+        <!-- Zoom -->
+        <span class="text-xs text-gray-500">Zoom:</span>
+        <button onclick="editorZoom(-1)" class="px-1.5 py-0.5 bg-dark-600 hover:bg-dark-500 rounded text-xs">-</button>
+        <span id="editor-zoom-display" class="text-xs text-gray-400 w-8 text-center">100</span>
+        <button onclick="editorZoom(1)" class="px-1.5 py-0.5 bg-dark-600 hover:bg-dark-500 rounded text-xs">+</button>
+
+        <div class="h-4 w-px bg-gray-700"></div>
+
+        <!-- Snap -->
+        <span class="text-xs text-gray-500">Snap:</span>
+        <select id="editor-snap" onchange="editorSetSnap(this.selectedIndex)" class="bg-dark-700 border border-gray-700 rounded px-1.5 py-0.5 text-xs text-gray-300 outline-none">
+            <option>1/1</option>
+            <option>1/2</option>
+            <option selected>1/4</option>
+            <option>1/8</option>
+            <option>1/16</option>
+            <option>Off</option>
+        </select>
+    </div>
+
+    <!-- Canvas area -->
+    <div id="editor-canvas-wrap" class="flex-1 relative overflow-hidden bg-dark-900">
+        <canvas id="editor-canvas" class="absolute inset-0"></canvas>
+    </div>
+
+    <!-- Status bar -->
+    <div class="flex items-center gap-4 px-4 py-1 bg-dark-800 border-t border-gray-800 shrink-0">
+        <span id="editor-status" class="text-xs text-gray-500">Ready</span>
+        <div class="flex-1"></div>
+        <span id="editor-note-count" class="text-xs text-gray-600"></span>
+        <span class="text-xs text-gray-600">Scroll: zoom | Middle-drag: pan | Dbl-click: add note | Del: delete</span>
+    </div>
+</div>
+
+<!-- Load modal -->
+<div id="editor-load-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.7)">
+    <div class="bg-dark-700 rounded-xl border border-gray-700 w-full max-w-md max-h-[70vh] flex flex-col">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+            <span class="text-sm font-medium">Load CDLC</span>
+            <button onclick="editorHideLoadModal()" class="text-gray-500 hover:text-white">&times;</button>
+        </div>
+        <div class="px-4 py-2">
+            <input id="editor-load-search" type="text" placeholder="Search..." oninput="editorFilterSongs(this.value)"
+                class="w-full bg-dark-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 outline-none focus:border-accent/50">
+        </div>
+        <div id="editor-load-list" class="flex-1 overflow-y-auto px-2 pb-2">
+            <div class="text-xs text-gray-500 p-2">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Context menu -->
+<div id="editor-context-menu" class="hidden absolute z-50 bg-dark-700 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[160px]">
+</div>
+
+<!-- Add note dialog -->
+<div id="editor-add-note-dialog" class="hidden absolute z-50 bg-dark-700 border border-gray-700 rounded-lg shadow-xl p-3 w-48">
+    <div class="text-xs text-gray-400 mb-2">Add Note</div>
+    <div class="flex gap-2 mb-2">
+        <div class="flex-1">
+            <label class="text-xs text-gray-500">Fret</label>
+            <input id="editor-add-fret" type="number" min="0" max="24" value="0"
+                class="w-full bg-dark-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 outline-none">
+        </div>
+        <div class="flex-1">
+            <label class="text-xs text-gray-500">Sustain</label>
+            <input id="editor-add-sustain" type="number" min="0" max="10" step="0.1" value="0"
+                class="w-full bg-dark-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 outline-none">
+        </div>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="editorConfirmAddNote()" class="flex-1 px-2 py-1 bg-accent hover:bg-accent-light rounded text-xs">Add</button>
+        <button onclick="editorHideAddNote()" class="flex-1 px-2 py-1 bg-dark-600 hover:bg-dark-500 rounded text-xs">Cancel</button>
+    </div>
+</div>

@@ -1,0 +1,12 @@
+{
+    "id": "editor",
+    "name": "Arrangement Editor",
+    "version": "1.0.0",
+    "nav": {
+        "label": "Editor",
+        "screen": "editor"
+    },
+    "screen": "screen.html",
+    "script": "screen.js",
+    "routes": "routes.py"
+}
