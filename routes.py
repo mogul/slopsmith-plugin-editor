@@ -26,6 +26,11 @@ def setup(app, context):
     from lib.audio import find_wem_files, convert_wem
 
     STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
+    STATIC_DIR.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
+    
+    # Use AUDIO_CACHE_DIR for uploaded/generated audio (AppImage-compatible)
+    AUDIO_CACHE_DIR = config_dir / "audio_cache"
+    AUDIO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
     # Active editing sessions: session_id -> {dir, audio_file, filename, song_data}
     sessions = {}
@@ -77,9 +82,9 @@ def setup(app, context):
                     audio_file = audio_path
                     audio_id = Path(filename).stem.replace(" ", "_")
                     ext = Path(audio_path).suffix
-                    dest = STATIC_DIR / f"editor_audio_{audio_id}{ext}"
+                    dest = AUDIO_CACHE_DIR / f"editor_audio_{audio_id}{ext}"
                     shutil.copy2(audio_path, dest)
-                    audio_url = f"/static/editor_audio_{audio_id}{ext}"
+                    audio_url = f"/audio/editor_audio_{audio_id}{ext}"
                 except Exception as e:
                     print(f"[Editor] Audio conversion failed: {e}")
 
@@ -200,10 +205,10 @@ def setup(app, context):
     async def upload_audio(file: UploadFile = File(...)):
         audio_id = Path(file.filename).stem.replace(" ", "_")
         ext = Path(file.filename).suffix or ".mp3"
-        dest = STATIC_DIR / f"editor_audio_{audio_id}{ext}"
+        dest = AUDIO_CACHE_DIR / f"editor_audio_{audio_id}{ext}"
         content = await file.read()
         dest.write_bytes(content)
-        return {"audio_url": f"/static/editor_audio_{audio_id}{ext}"}
+        return {"audio_url": f"/audio/editor_audio_{audio_id}{ext}"}
 
     # ── Download audio from YouTube ──────────────────────────────────
 
@@ -238,11 +243,11 @@ def setup(app, context):
                     if f.suffix in (".mp3", ".m4a", ".ogg", ".wav"):
                         audio_id = re.sub(r"[^a-zA-Z0-9_-]", "_", title)[:60]
                         ext = f.suffix
-                        dest = STATIC_DIR / f"editor_audio_{audio_id}{ext}"
+                        dest = AUDIO_CACHE_DIR / f"editor_audio_{audio_id}{ext}"
                         shutil.copy2(f, dest)
                         shutil.rmtree(tmp, ignore_errors=True)
                         return {
-                            "audio_url": f"/static/editor_audio_{audio_id}{ext}",
+                            "audio_url": f"/audio/editor_audio_{audio_id}{ext}",
                             "title": title,
                         }
 
@@ -366,14 +371,14 @@ def setup(app, context):
                             start_time=float(s.get("startTime", "0")),
                         ))
 
-            # If we have a local audio file path, copy to static
+            # If we have a local audio file path, copy to audio cache
             nonlocal audio_url
             if audio_path and Path(audio_path).exists():
                 audio_id = re.sub(r"[^a-zA-Z0-9_-]", "_", title or "gp_import")[:60]
                 ext = Path(audio_path).suffix
-                dest = STATIC_DIR / f"editor_audio_{audio_id}{ext}"
+                dest = AUDIO_CACHE_DIR / f"editor_audio_{audio_id}{ext}"
                 shutil.copy2(audio_path, dest)
-                audio_url = f"/static/editor_audio_{audio_id}{ext}"
+                audio_url = f"/audio/editor_audio_{audio_id}{ext}"
 
             result = _song_to_dict(song, audio_url)
             return result, tmp, xml_paths
@@ -598,8 +603,11 @@ def setup(app, context):
 
             # Resolve audio file path from URL
             audio_file = ""
-            if audio_url and audio_url.startswith("/static/"):
-                audio_file = str(STATIC_DIR / audio_url.replace("/static/", ""))
+            if audio_url:
+                if audio_url.startswith("/static/"):
+                    audio_file = str(STATIC_DIR / audio_url.replace("/static/", ""))
+                elif audio_url.startswith("/audio/"):
+                    audio_file = str(AUDIO_CACHE_DIR / audio_url.replace("/audio/", ""))
 
             if not audio_file or not Path(audio_file).exists():
                 raise RuntimeError("No audio file available for build")
