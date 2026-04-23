@@ -1,0 +1,2 @@
+# Plugin dependencies
+yt-dlp
